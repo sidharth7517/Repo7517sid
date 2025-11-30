@@ -1,0 +1,63 @@
+# -------------------------------
+# STEP 0: Import required libraries
+# -------------------------------
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import trim, col, to_timestamp
+
+# -------------------------------
+# STEP 1: Connect to S3
+# -------------------------------
+spark._jsc.hadoopConfiguration().set("fs.s3a.access.key", "<YOUR_AWS_ACCESS_KEY>")
+spark._jsc.hadoopConfiguration().set("fs.s3a.secret.key", "<YOUR_AWS_SECRET_KEY>")
+spark._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "s3.amazonaws.com")
+
+# -------------------------------
+# STEP 2: Define S3 paths
+# -------------------------------
+claims_path = "s3a://sidharth-insuranceplus/silver/claims.csv"
+policies_path = "s3a://sidharth-insuranceplus/silver/policies.csv"
+adjusters_path = "s3a://sidharth-insuranceplus/silver/adjusters.json"
+
+gold_claims_path = "s3a://sidharth-insuranceplus/gold/fact_claims/"
+gold_policies_path = "s3a://sidharth-insuranceplus/gold/fact_policies/"
+gold_adjusters_path = "s3a://sidharth-insuranceplus/gold/dim_adjusters/"
+
+# -------------------------------
+# STEP 3: Read Silver files
+# -------------------------------
+df_claims = spark.read.option("header", True).csv(claims_path)
+df_policies = spark.read.option("header", True).csv(policies_path)
+df_adjusters = spark.read.option("multiline", True).json(adjusters_path)
+
+# -------------------------------
+# STEP 4: Clean / Standardize
+# -------------------------------
+def clean_df(df):
+    return df.withColumn("id", trim(col("id"))) \
+             .withColumn("value", trim(col("value"))) \
+             .withColumn("timestamp", to_timestamp(col("timestamp")))
+
+df_claims = clean_df(df_claims)
+df_policies = clean_df(df_policies)
+df_adjusters = clean_df(df_adjusters)
+
+# -------------------------------
+# STEP 5: Show first 5 rows (for screenshots)
+# -------------------------------
+print("=== Claims Gold Preview ===")
+df_claims.show(5)
+
+print("=== Policies Gold Preview ===")
+df_policies.show(5)
+
+print("=== Adjusters Gold Preview ===")
+df_adjusters.show(5)
+
+# -------------------------------
+# STEP 6: Save Gold tables back to S3
+# -------------------------------
+df_claims.write.mode("overwrite").parquet(gold_claims_path)
+df_policies.write.mode("overwrite").parquet(gold_policies_path)
+df_adjusters.write.mode("overwrite").parquet(gold_adjusters_path)
+
+print("Gold tables successfully saved to S3!")
