@@ -1,0 +1,24 @@
+from pyspark.sql.functions import col, to_timestamp, trim
+
+base = "s3://sidharth-insureplus/silver/"
+
+claims = spark.read.parquet(base + "claims/")
+policies = spark.read.parquet(base + "policies/")
+adjusters = spark.read.parquet(base + "adjusters/")
+
+def clean(df):
+    df = df.withColumn("timestamp", to_timestamp(col("timestamp")))
+    df = df.withColumn("value", col("value").cast("double"))
+    return df
+
+claims = clean(claims)
+policies = clean(policies)
+adjusters = clean(adjusters)
+
+gold_base = "s3://sidharth-insureplus/gold/"
+
+claims.write.mode("overwrite").parquet(gold_base + "fact_claims/")
+policies.write.mode("overwrite").parquet(gold_base + "fact_policies/")
+adjusters.write.mode("overwrite").parquet(gold_base + "dim_adjusters/")
+
+print("Done.")
