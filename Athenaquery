@@ -1,0 +1,39 @@
+CREATE EXTERNAL TABLE IF NOT EXISTS insureplus.fact_claims (
+    timestamp timestamp,
+    value double,
+    claim_id string,
+    policy_id string,
+    claim_type string,
+    status string
+    -- Add other columns present in your claims parquet here
+)
+STORED AS PARQUET
+LOCATION 's3://sidharth-insureplus/gold/fact_claims/';
+
+
+CREATE EXTERNAL TABLE IF NOT EXISTS insureplus.fact_policies (
+    timestamp timestamp,
+    value double,
+    policy_id string,
+    customer_id string,
+    policy_type string,
+    start_date date,
+    end_date date
+    -- Add other columns present in your policies parquet here
+)
+STORED AS PARQUET
+LOCATION 's3://sidharth-insureplus/gold/fact_policies/';
+CREATE EXTERNAL TABLE IF NOT EXISTS insureplus.dim_adjusters (
+    timestamp timestamp,
+    value double,
+    adjuster_id string,
+    name string,
+    region string,
+    experience_years int
+    -- Add other columns present in your adjusters parquet here
+)
+STORED AS PARQUET
+LOCATION 's3://sidharth-insureplus/gold/dim_adjusters/';
+SELECT * FROM insureplus.fact_claims LIMIT 10;
+SELECT * FROM insureplus.fact_policies LIMIT 10;
+SELECT * FROM insureplus.dim_adjusters LIMIT 10;
