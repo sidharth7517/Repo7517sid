@@ -1,0 +1,30 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, to_timestamp
+
+# Step 1: Start Spark
+spark = SparkSession.builder.appName("Bronze_to_Silver").getOrCreate()
+
+# Step 2: Read raw files
+df_claims = spark.read.option("header","true").csv("s3://insureplus/bronze/claims/")
+df_policies = spark.read.option("header","true").csv("s3://insureplus/bronze/policies/")
+df_adjusters = spark.read.json("s3://insureplus/bronze/adjusters/")
+
+# Step 3: Cleaning function
+def clean_df(df):
+    return df \
+        .withColumn("timestamp", to_timestamp(col("timestamp"), "yyyy-MM-dd HH:mm:ss")) \
+        .withColumn("value", col("value").cast("double")) \
+        .dropDuplicates(["id","timestamp"]) \
+        .fillna({"value":0})
+
+# Step 4: Clean each table
+df_claims_silver = clean_df(df_claims)
+df_policies_silver = clean_df(df_policies)
+df_adjusters_silver = clean_df(df_adjusters)
+
+# Step 5: Save cleaned data to Silver layer
+df_claims_silver.write.mode("overwrite").parquet("s3://insureplus/silver/claims/")
+df_policies_silver.write.mode("overwrite").parquet("s3://insureplus/silver/policies/")
+df_adjusters_silver.write.mode("overwrite").parquet("s3://insureplus/silver/adjusters/")
+
+print("Bronze → Silver Cleaning Done!")
