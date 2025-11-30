@@ -1,0 +1,51 @@
+# ------------------------------------------
+# LOAD SILVER LAYER
+# ------------------------------------------
+claims = spark.read.parquet("s3a://sidharth-insuranceplus/silver/claims/")
+policies = spark.read.parquet("s3a://sidharth-insuranceplus/silver/policies/")
+adjusters = spark.read.parquet("s3a://sidharth-insuranceplus/silver/adjusters/")
+
+# ------------------------------------------
+# CLEAN DATA
+# ------------------------------------------
+from pyspark.sql.functions import trim, col
+
+claims = claims.select([trim(col(c)).alias(c) for c in claims.columns])
+policies = policies.select([trim(col(c)).alias(c) for c in policies.columns])
+adjusters = adjusters.select([trim(col(c)).alias(c) for c in adjusters.columns])
+
+# ------------------------------------------
+# GOLD LAYER CREATION
+# ------------------------------------------
+claims_gold = claims
+policies_gold = policies
+adjusters_gold = adjusters
+
+# Register as SQL views (optional)
+claims_gold.createOrReplaceTempView("fact_claims_gold")
+policies_gold.createOrReplaceTempView("fact_policies_gold")
+adjusters_gold.createOrReplaceTempView("dim_adjusters_gold")
+
+# ------------------------------------------
+# WRITE GOLD TO S3
+# ------------------------------------------
+claims_gold.write.mode("overwrite").parquet("s3a://sidharth-insuranceplus/gold/fact_claims/")
+policies_gold.write.mode("overwrite").parquet("s3a://sidharth-insuranceplus/gold/fact_policies/")
+adjusters_gold.write.mode("overwrite").parquet("s3a://sidharth-insuranceplus/gold/dim_adjusters/")
+
+# ------------------------------------------
+# GENERATE KPIs (for screenshots)
+# ------------------------------------------
+from pyspark.sql.functions import count, sum, avg
+
+print("Total Claims:", claims.count())
+print("Total Policies:", policies.count())
+print("Total Adjusters:", adjusters.count())
+
+claims.agg(sum("value").alias("Total Claim Amount")).show()
+claims.agg(avg("value").alias("Average Claim Amount")).show()
+
+# Show sample rows for screenshots
+claims_gold.show(5)
+policies_gold.show(5)
+adjusters_gold.show(5)
